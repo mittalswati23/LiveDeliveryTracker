@@ -1,0 +1,8 @@
+Project: Live Delivery Tracker
+Stack: Angular 21 standalone + .NET Core 8 Web API + SignalR + Leaflet + SQLite
+Frontend root: client/src/app/
+Backend root: server/DeliveryTracker.API/
+Auth: JWT stored in localStorage (portfolio tradeoff, intentional)
+Naming: PascalCase for C# files, camelCase for TS files, kebab-case for Angular component folders
+Branding: Trackr only — never CalPortland
+Password: Trackr2025!
