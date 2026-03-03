@@ -4,5 +4,5 @@ Frontend root: client/src/app/
 Backend root: server/DeliveryTracker.API/
 Auth: JWT stored in localStorage (portfolio tradeoff, intentional)
 Naming: PascalCase for C# files, camelCase for TS files, kebab-case for Angular component folders
-Branding: Trackr only — never CalPortland
+Branding: Trackr only
 Password: Trackr2025!
