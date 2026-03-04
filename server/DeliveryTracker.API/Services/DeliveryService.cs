@@ -30,12 +30,15 @@ public class DeliveryService : IDeliveryService
         return delivery is null ? null : ToDto(delivery);
     }
 
-    public async Task<bool> UpdateStatusAsync(int id, DeliveryStatus status)
+    public async Task<bool> UpdateStatusAsync(int id, string status)
     {
         var delivery = await _db.Deliveries.FindAsync(id);
         if (delivery is null) return false;
 
-        delivery.Status = status;
+        if (!Enum.TryParse<DeliveryStatus>(status, ignoreCase: true, out var parsed))
+            return false;
+
+        delivery.Status = parsed;
         await _db.SaveChangesAsync();
         return true;
     }

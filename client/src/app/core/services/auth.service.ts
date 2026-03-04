@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs/operators';
@@ -9,9 +9,10 @@ const TOKEN_KEY = 'trackr_token';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  readonly currentUser = signal<UserModel | null>(this.decodeStoredToken());
+  private http   = inject(HttpClient);
+  private router = inject(Router);
 
-  constructor(private http: HttpClient, private router: Router) {}
+  readonly currentUser = signal<UserModel | null>(this.decodeStoredToken());
 
   login(email: string, password: string) {
     return this.http

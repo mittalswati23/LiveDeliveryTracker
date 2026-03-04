@@ -36,10 +36,18 @@ public class DeliveryController : ControllerBase
 
     [HttpPut("{id:int}/status")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusDto dto)
     {
         var updated = await _delivery.UpdateStatusAsync(id, dto.Status);
-        return updated ? NoContent() : NotFound();
+        // UpdateStatusAsync returns false for both "not found" and "invalid status string"
+        // A missing delivery is 404; an unrecognised status string is 400
+        if (!updated)
+        {
+            var delivery = await _delivery.GetByIdAsync(id);
+            return delivery is null ? NotFound() : BadRequest("Invalid status value.");
+        }
+        return NoContent();
     }
 }

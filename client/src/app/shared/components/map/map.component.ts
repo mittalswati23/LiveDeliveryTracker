@@ -1,29 +1,20 @@
 import {
   Component,
-  Input,
-  Output,
-  EventEmitter,
+  input,
+  output,
   OnChanges,
   OnDestroy,
   AfterViewInit,
   SimpleChanges,
   NgZone,
   ElementRef,
-  ViewChild
+  ViewChild,
+  inject
 } from '@angular/core';
 import * as L from 'leaflet';
-import { Subscription } from 'rxjs';
 import { DeliveryModel } from '../../../core/models/delivery.model';
-import { LocationModel } from '../../../core/models/location.model';
-import { SignalRService } from '../../../core/services/signalr.service';
-import { STATUS_COLORS } from '../../../features/dashboard/dashboard.component';
+import { STATUS_COLORS } from '../../constants/status-colors';
 
-// Fix Leaflet's default icon paths broken by webpack bundler
-L.Icon.Default.mergeOptions({
-  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
 
 @Component({
   selector: 'app-map',
@@ -42,14 +33,12 @@ L.Icon.Default.mergeOptions({
 export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
 
-  @Input() deliveries: DeliveryModel[] = [];
-  @Output() deliverySelected = new EventEmitter<DeliveryModel>();
+  deliveries       = input<DeliveryModel[]>([]);
+  deliverySelected = output<DeliveryModel>();
 
   private map!: L.Map;
-  private markers = new Map<number, L.Marker>();
-  private sub?: Subscription;
-
-  constructor(private zone: NgZone, private signalR: SignalRService) {}
+  private markers  = new Map<number, L.Marker>();
+  private zone     = inject(NgZone);
 
   ngAfterViewInit(): void {
     this.zone.runOutsideAngular(() => {
@@ -65,10 +54,9 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
         subdomains: 'abcd',
         maxZoom: 19
       }).addTo(this.map);
-    });
 
-    this.renderMarkers();
-    this.subscribeToUpdates();
+      this.renderMarkers();
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -78,7 +66,6 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.sub?.unsubscribe();
     this.map?.remove();
   }
 
@@ -105,8 +92,10 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.map) return;
 
     this.zone.runOutsideAngular(() => {
+      const list = this.deliveries();
+
       // Remove markers for deliveries no longer in the list
-      const currentIds = new Set(this.deliveries.map(d => d.id));
+      const currentIds = new Set(list.map(d => d.id));
       for (const [id, marker] of this.markers) {
         if (!currentIds.has(id)) {
           marker.remove();
@@ -114,14 +103,16 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
         }
       }
 
-      for (const delivery of this.deliveries) {
-        const color = STATUS_COLORS[delivery.status] ?? '#64748b';
-        const icon = this.makeIcon(color, delivery.deliveryNumber);
+      for (const delivery of list) {
+        const color = this.colorFor(delivery.status);
+        const icon  = this.makeIcon(color, delivery.deliveryNumber);
 
         if (this.markers.has(delivery.id)) {
+          // Update existing marker — position, icon, and popup all in sync
           const m = this.markers.get(delivery.id)!;
           m.setLatLng([delivery.currentLatitude, delivery.currentLongitude]);
           m.setIcon(icon);
+          m.setPopupContent(this.makePopup(delivery));
         } else {
           const marker = L.marker(
             [delivery.currentLatitude, delivery.currentLongitude],
@@ -129,35 +120,16 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
           )
             .bindPopup(this.makePopup(delivery))
             .on('click', () => {
-              this.zone.run(() => this.deliverySelected.emit(delivery));
+              // Look up the live delivery from the signal — the closure snapshot is stale
+              // after SignalR updates spread new objects into the deliveries array
+              const live = this.deliveries().find(d => d.id === delivery.id);
+              if (live) this.zone.run(() => this.deliverySelected.emit(live));
             });
 
           marker.addTo(this.map);
           this.markers.set(delivery.id, marker);
         }
       }
-    });
-  }
-
-  private subscribeToUpdates(): void {
-    this.sub = this.signalR.locationUpdates$.subscribe((update: LocationModel) => {
-      // Leaflet operates outside Angular zone — wrap state changes in NgZone.run
-      this.zone.runOutsideAngular(() => {
-        const marker = this.markers.get(update.deliveryId);
-        if (!marker) return;
-
-        marker.setLatLng([update.latitude, update.longitude]);
-
-        const color = STATUS_COLORS[update.status] ?? '#64748b';
-        const delivery = this.deliveries.find(d => d.id === update.deliveryId);
-        if (delivery) {
-          delivery.currentLatitude  = update.latitude;
-          delivery.currentLongitude = update.longitude;
-          delivery.status           = update.status;
-          marker.setIcon(this.makeIcon(color, delivery.deliveryNumber));
-          marker.setPopupContent(this.makePopup(delivery));
-        }
-      });
     });
   }
 
@@ -191,8 +163,12 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
     });
   }
 
+  private colorFor(status: string): string {
+    return STATUS_COLORS[status] ?? 'var(--text-muted)';
+  }
+
   private makePopup(d: DeliveryModel): string {
-    const color = STATUS_COLORS[d.status] ?? '#64748b';
+    const color = this.colorFor(d.status);
     return `
       <div style="font-family:monospace;font-size:12px;min-width:180px">
         <div style="font-weight:bold;color:${color};margin-bottom:4px">${d.deliveryNumber}</div>

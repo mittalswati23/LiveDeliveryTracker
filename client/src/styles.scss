@@ -1,9 +1,30 @@
 :root {
-  --bg-primary:   #0f1117;
-  --bg-secondary: #1a1d27;
-  --accent:       #00ff88;
-  --text-primary: #e2e8f0;
-  --text-muted:   #64748b;
+  // ── Backgrounds ────────────────────────────────────────────
+  --bg-primary:         #0d1117;
+  --bg-surface:         #161b22;
+  --bg-secondary:       #161b22;   // backward-compat alias
+  --bg-elevated:        #1c2128;
+
+  // ── Accent colours ─────────────────────────────────────────
+  --accent:             #00ff88;   // backward-compat alias
+  --accent-green:       #00ff88;
+  --accent-green-hover: #00e67a;
+  --accent-orange:      #ff8c00;
+  --accent-amber:       #f0b429;
+  --accent-blue:        #58a6ff;
+  --accent-red:         #f87171;
+
+  // ── Text ───────────────────────────────────────────────────
+  --text-primary:       #e6edf3;
+  --text-secondary:     #94a3b8;
+  --text-muted:         #8b949e;
+
+  // ── Borders ────────────────────────────────────────────────
+  --border:             #2a2d3a;
+  --border-hover:       #3a4a5a;
+
+  // ── Typography ─────────────────────────────────────────────
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 }
 
 *,

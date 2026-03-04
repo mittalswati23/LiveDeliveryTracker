@@ -1,6 +1,7 @@
 export interface DeliveryModel {
   id: number;
   deliveryNumber: string;
+  originAddress: string;
   destinationAddress: string;
   recipientName: string;
   packageWeight: number;

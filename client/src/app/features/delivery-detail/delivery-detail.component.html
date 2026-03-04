@@ -1,0 +1,163 @@
+<app-spinner [visible]="isLoading()" />
+
+@if (hasError()) {
+  <div class="error-page">
+    <p class="error-msg">Failed to load delivery</p>
+    <a class="back-link" routerLink="/dashboard">← Back to Dashboard</a>
+  </div>
+} @else if (deliveryResource.value(); as d) {
+  <div class="detail-shell">
+
+    <!-- ── Breadcrumb ──────────────────────────────────────── -->
+    <nav class="breadcrumb">
+      <a class="crumb-link" routerLink="/dashboard">Dashboard</a>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-link">Deliveries</span>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-current">{{ d.deliveryNumber }}</span>
+    </nav>
+
+    <!-- ── Page title ─────────────────────────────────────── -->
+    <div class="page-title">
+      <h1 class="delivery-id">{{ d.deliveryNumber }}</h1>
+      <app-status-badge [status]="d.status" />
+    </div>
+
+    <!-- ── Stat cards ─────────────────────────────────────── -->
+    <div class="stat-cards">
+
+      <div class="stat-card">
+        <div class="stat-card-label">ETA</div>
+        <div class="stat-card-value">{{ d.estimatedMinutes | eta }}</div>
+        <div class="stat-card-sub">estimated remaining</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-label">DISTANCE</div>
+        <div class="stat-card-value">
+          {{ d.totalRouteDistanceMiles | number:'1.1-1' }}
+          <span class="unit">mi</span>
+        </div>
+        <div class="stat-card-sub">total route</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-label">ROUTE PROGRESS</div>
+        <div class="stat-card-value">
+          {{ routeProgress() }}<span class="unit">%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" [style.width.%]="routeProgress()"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Info panels ────────────────────────────────────── -->
+    <div class="panels">
+
+      <div class="panel">
+        <div class="panel-header">DELIVERY INFO</div>
+        <div class="panel-body">
+          <div class="info-row">
+            <span class="info-label">FROM</span>
+            <span class="info-value">{{ d.originAddress }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">TO</span>
+            <span class="info-value">{{ d.destinationAddress }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">RECIPIENT</span>
+            <span class="info-value">{{ d.recipientName }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">WEIGHT</span>
+            <span class="info-value">{{ d.packageWeight | number:'1.1-1' }} kg</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">PRIORITY</span>
+            <span class="info-value" [style.color]="priorityColor(d.priority)">
+              {{ d.priority.toUpperCase() }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">DISPATCHED</span>
+            <span class="info-value">{{ d.dispatchedAt | date:'MMM d, h:mm a' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">DRIVER INFO</div>
+        <div class="panel-body">
+          <div class="info-row">
+            <span class="info-label">NAME</span>
+            <span class="info-value">{{ d.driverName }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">DRIVER ID</span>
+            <span class="info-value mono">{{ d.driverId }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">WAYPOINT</span>
+            <span class="info-value mono">{{ d.currentWaypointIndex }} / {{ d.totalWaypoints }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">COORDINATES</span>
+            <span class="info-value mono">
+              {{ d.currentLatitude | number:'1.4-4' }}, {{ d.currentLongitude | number:'1.4-4' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Timeline + Mini map ───────────────────────────── -->
+    <div class="panels">
+
+      <!-- Event timeline -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>EVENT TIMELINE</span>
+          @if (deliveryResource.value()?.status !== 'Delivered') {
+            <button
+              class="btn-deliver"
+              [disabled]="saving()"
+              (click)="markDelivered()"
+            >{{ saving() ? 'UPDATING...' : 'MARK AS DELIVERED' }}</button>
+          }
+        </div>
+        <div class="panel-body timeline-body">
+          <ol class="timeline">
+            @for (step of timelineSteps(); track step.label) {
+              <li class="timeline-step" [attr.data-state]="step.state">
+                <span class="tl-dot"></span>
+                <span class="tl-label">{{ step.label }}</span>
+                @if (step.state === 'complete') {
+                  <span class="tl-check">✓</span>
+                } @else if (step.state === 'delayed') {
+                  <span class="tl-delayed">DELAYED</span>
+                } @else if (step.state === 'current') {
+                  <span class="tl-current-badge">NOW</span>
+                }
+              </li>
+            }
+          </ol>
+        </div>
+      </div>
+
+      <!-- Mini route map -->
+      <div class="panel">
+        <div class="panel-header">LIVE ROUTE MAP</div>
+        <app-mini-map
+          [delivery]="deliveryResource.value()"
+          [locations]="locationsResource.value() ?? []"
+        />
+      </div>
+
+    </div>
+
+  </div>
+}

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -8,8 +8,7 @@ import { LocationModel } from '../models/location.model';
 @Injectable({ providedIn: 'root' })
 export class DeliveryService {
   private base = `${environment.apiUrl}/api`;
-
-  constructor(private http: HttpClient) {}
+  private http = inject(HttpClient);
 
   getDeliveries(): Observable<DeliveryModel[]> {
     return this.http.get<DeliveryModel[]>(`${this.base}/deliveries`);

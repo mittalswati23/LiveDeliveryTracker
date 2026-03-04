@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { environment } from '../../../environments/environment';
@@ -10,8 +10,7 @@ export class SignalRService {
   readonly locationUpdates$ = new Subject<LocationModel>();
 
   private connection: signalR.HubConnection | null = null;
-
-  constructor(private auth: AuthService) {}
+  private auth = inject(AuthService);
 
   async start(): Promise<void> {
     if (this.connection) return;

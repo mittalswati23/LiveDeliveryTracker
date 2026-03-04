@@ -462,54 +462,19 @@ git push
 **Goal:** Match the UI mocks pixel-close and build the delivery detail page.
 **Deliverable:** Full app navigable across all three screens, data-driven, dark theme applied.
 
+> Phase 3 is divided into 6 steps. Complete each step and hit its checkpoint before opening the next one in Cursor.
+
 ### End-of-Phase Commit
 ```bash
 git commit -m "feat(frontend): delivery detail page, shared components, full dark theme"
 git push
 ```
 
-### Shared Components
+---
 
-- [ ] `shared/components/status-badge/status-badge.component.ts`
-  - Color-coded by `DeliveryStatus`: green (Nearby), blue (InTransit), orange (Pickup), grey (Delivered), red (Delayed)
-- [ ] `shared/components/delivery-card/delivery-card.component.ts`
-  - Address, driver ID, ETA, distance, status badge
-  - Highlighted border when selected
-- [ ] `shared/components/spinner/spinner.component.ts` — full-screen loading overlay
-- [ ] `shared/pipes/eta.pipe.ts` — formats minutes: `4 min`, `1h 12 min`
-- [ ] Wire `SpinnerComponent` to actual loading states (gap #9) — spinner must show during:
-  - Initial `getDeliveries()` HTTP call on dashboard load
-  - `getDelivery(id)` call on detail page load
-  - Login form submission
-  Use a `loading` signal in each component, set `true` before the call and `false` in `finalize()` operator
+### Step 1 — Theme Foundation: CSS Variables + Font (~15 min)
 
-### Dashboard Completion
-
-- [ ] Replace placeholder cards with `DeliveryCardComponent`
-- [ ] Add filter tabs: All / Transit / Nearby / Delayed — filters sidebar list
-- [ ] Click delivery card → map centers on marker + info popup appears
-- [ ] Click map marker → sidebar highlights matching card + popup shown
-- [ ] "LIVE" indicator in top bar pulses green when SignalR is connected
-
-### Delivery Detail Page
-
-- [ ] Route: `/deliveries/:id`
-- [ ] Breadcrumb: Dashboard → Deliveries → #DLV-XXXX
-- [ ] Three stat cards: ETA (with arrival time), Distance Remaining, Route Progress (% bar)
-- [ ] Event timeline — reads `Location` history from `GET /api/locations/{id}`:
-  - Order Dispatched
-  - Package Picked Up
-  - En Route
-  - Checkpoint Passed
-  - Approaching Destination ← current step (amber)
-  - Delivered (pending)
-- [ ] Mini Leaflet map showing route line + current position
-- [ ] Delivery Info panel: From, To, Recipient, Package weight, Priority
-- [ ] Driver Info panel: Name, Driver ID, Vehicle
-
-### Theme
-
-- [ ] Full dark theme in `styles.scss` matching all three mocks:
+- [ ] Expand `styles.scss` `:root` with the full token set:
   ```scss
   :root {
     --bg-primary:    #0d1117;
@@ -519,14 +484,177 @@ git push
     --accent-orange: #ff8c00;
     --accent-amber:  #f0b429;
     --accent-blue:   #58a6ff;
+    --accent-red:    #f87171;
     --text-primary:  #e6edf3;
     --text-muted:    #8b949e;
     --border:        #30363d;
   }
   ```
-- [ ] Monospaced font (`JetBrains Mono` or `Fira Code`) for delivery IDs and coordinates
-- [ ] Auth guard covers `/dashboard` and `/deliveries/:id`
-- [ ] 401 response from API redirects to `/login` and clears localStorage
+- [ ] Add JetBrains Mono via Google Fonts in `index.html` `<head>`:
+  ```html
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  ```
+- [ ] Apply `font-family: 'JetBrains Mono', monospace` to delivery IDs (`DLV-XXXX`), coordinate values, and the top brand name across `dashboard.component.scss` and `login.component.scss`
+- [ ] Replace all hardcoded hex values in existing SCSS files with the matching CSS variable — e.g. `#0d1117` → `var(--bg-primary)`, `#30363d` → `var(--border)`
+
+**Step 1 checkpoint:** `ng serve` builds with no errors. The login and dashboard pages look identical to before but now use CSS variables. JetBrains Mono renders on delivery IDs.
+
+---
+
+### Step 2 — StatusBadge Component + EtaPipe (~20 min)
+
+- [ ] Create `shared/components/status-badge/status-badge.component.ts`
+  - Standalone, `ChangeDetectionStrategy.OnPush`
+  - `@Input() status: string`
+  - Derives color from the shared `STATUS_COLORS` record (move constant out of `dashboard.component.ts` into `shared/constants/status-colors.ts`)
+  - Template: `<span class="badge" [style.color]="color" [style.border-color]="color">{{ label }}</span>`
+  - Label mapping: `InTransit` → `IN TRANSIT`, `Nearby` → `NEARBY`, etc.
+- [ ] Create `shared/pipes/eta.pipe.ts`
+  - Input: `estimatedMinutes: number`
+  - Output: `"4 min"` if < 60, `"1h 12 min"` if ≥ 60
+- [ ] Replace the inline `<span class="status-badge">` in `dashboard.component.html` with `<app-status-badge [status]="d.status" />`
+- [ ] Replace raw `{{ d.estimatedMinutes }} min` in the delivery card with `{{ d.estimatedMinutes | eta }}`
+- [ ] Import `StatusBadgeComponent` and `EtaPipe` in `DashboardComponent` imports array
+
+**Step 2 checkpoint:** Dashboard sidebar cards show `<app-status-badge>` instead of inline spans. ETA reads "4 min" or "1h 5 min". `ng build` is clean.
+
+---
+
+### Step 3 — DeliveryCard + Spinner + Filter Tabs (~30 min)
+
+- [ ] Create `shared/components/delivery-card/delivery-card.component.ts`
+  - Standalone, `ChangeDetectionStrategy.OnPush`
+  - `@Input() delivery: DeliveryModel`
+  - `@Input() selected = false`
+  - `@Output() cardClicked = new EventEmitter<DeliveryModel>()`
+  - Extracts the current card HTML from `dashboard.component.html` into its own template
+  - `[class.selected]="selected"` on root element for highlighted border
+- [ ] Create `shared/components/spinner/spinner.component.ts`
+  - Full-screen dark overlay with a pulsing ring animation
+  - `@Input() visible = false` — `@if (visible)` wraps the overlay
+- [ ] Wire `SpinnerComponent` to loading states (gap #9):
+  - Dashboard: `<app-spinner [visible]="loading()" />` — replaces inline `.sidebar-loading` div
+  - Login: wrap submit button area with spinner while `loading()` is true
+- [ ] Replace inline delivery card HTML in `dashboard.component.html` with `<app-delivery-card>`
+- [ ] Add filter tabs to sidebar:
+  - Tabs: **All** / **Transit** / **Nearby** / **Delayed**
+  - `activeFilter = signal<string>('All')` in `DashboardComponent`
+  - `filteredDeliveries = computed(() => ...)` — returns full list for All, or filters by status
+  - Use `filteredDeliveries()` in `@for` loop instead of `deliveries()`
+  - Stat bar counts continue using the full `deliveries()` signal (unfiltered)
+- [ ] **Two distinct interaction handlers in `DashboardComponent` — do NOT merge them:**
+  - **Card click** → `onCardClicked(d: DeliveryModel)` — calls `router.navigate(['/deliveries', d.id])` only. Does NOT call `focusDelivery`. Does NOT set `selected`.
+  - **Marker click** → `onDeliverySelected(d: DeliveryModel)` — sets `selected.set(d)` and calls `mapComponent?.focusDelivery(d.id)`. Does NOT navigate.
+  - `selected` signal (sidebar card highlight) is only driven by marker clicks, not card clicks
+  - Wire `(cardClicked)="onCardClicked($event)"` on `<app-delivery-card>` and keep `(deliverySelected)="onDeliverySelected($event)"` on `<app-map>`
+
+**Step 3 checkpoint:** Filter tabs switch the sidebar list. Spinner overlay appears while deliveries load. Delivery cards are rendered by `DeliveryCardComponent`. `ng build` clean.
+
+---
+
+### Step 4 — Delivery Detail Page: Layout + Info Panels (~30 min)
+
+> **Pattern decision:** Uses `httpResource` (Angular 19+) instead of `forkJoin`. Signal-native, zero manual loading/error signals, interceptors (JWT) apply automatically since `httpResource` uses `HttpClient` internally.
+
+- [ ] Add route to `app.routes.ts`:
+  ```ts
+  {
+    path: 'deliveries/:id',
+    loadComponent: () => import('./features/delivery-detail/delivery-detail.component').then(m => m.DeliveryDetailComponent),
+    canActivate: [authGuard]
+  }
+  ```
+- [ ] Create `features/delivery-detail/delivery-detail.component.ts`
+  - Read `:id` from `ActivatedRoute` as a signal: `id = toSignal(inject(ActivatedRoute).params.pipe(map(p => p['id'])))`
+  - Declare two `httpResource` instances (both fire in parallel automatically):
+    ```ts
+    import { httpResource } from '@angular/core/http';
+
+    deliveryResource  = httpResource<DeliveryModel>(
+      () => `${environment.apiUrl}/deliveries/${this.id()}`
+    );
+    locationsResource = httpResource<LocationModel[]>(
+      () => `${environment.apiUrl}/locations/${this.id()}`
+    );
+    ```
+  - Loading state: `isLoading = computed(() => this.deliveryResource.isLoading() || this.locationsResource.isLoading())`
+  - Error state: `hasError = computed(() => !!this.deliveryResource.error())`
+  - `<app-spinner [visible]="isLoading()" />`
+  - No `ngOnInit`, no `subscribe()`, no manual `loading` signal — `httpResource` handles it all
+- [ ] Template layout:
+  - **Breadcrumb bar**: `← Dashboard  /  Deliveries  /  #DLV-XXXX` — clicking "Dashboard" navigates back via `routerLink="/dashboard"`
+  - **Three stat cards** (top row): ETA (`estimatedMinutes | eta`), Distance Remaining (`totalRouteDistanceMiles | number:'1.1-1' mi`), Route Progress (`currentWaypointIndex / totalWaypoints * 100` % with a styled `<div class="progress-bar">`)
+  - **Delivery Info panel** (left column): From (`originAddress`), To (`destinationAddress`), Recipient, Package weight, Priority, `<app-status-badge>`
+  - **Driver Info panel** (right column): Driver Name, Driver ID (`driverId`)
+- [ ] Style using CSS variables — dark card panels matching `--bg-surface` / `--bg-elevated`
+- [ ] The `onCardClicked` handler (added in Step 3) already handles navigation — no extra wiring needed here
+
+**Step 4 checkpoint:** Clicking a sidebar card navigates to `/deliveries/1`. Page loads delivery data via `httpResource`, shows breadcrumb, stat cards, Delivery Info, and Driver Info panels. Back link returns to dashboard. No `subscribe()` in the component.
+
+---
+
+### Step 5 — Detail Page: Timeline + Mini Map (~30 min)
+
+- [ ] `locationsResource` declared in Step 4 already fires the location history call in parallel — no additional wiring needed
+- [ ] Event timeline (left side of detail page):
+  - Maps location history to ordered steps. Use the following label logic:
+    - **If `status === 'Delayed'`** — override all waypoint math; show "Order Dispatched" + "Delayed" step highlighted in red, all subsequent steps greyed out. Do NOT use waypoint fraction for Delayed deliveries.
+    - **If `status === 'Delivered'`** — all steps green, "Delivered" step complete.
+    - **Otherwise** — derive from `currentWaypointIndex / totalWaypoints` fraction:
+      - 0% → current step: "Order Dispatched"
+      - > 0% → current step: "Package Picked Up"
+      - > 25% → current step: "En Route"
+      - > 50% → current step: "Checkpoint Passed"
+      - > 75% → current step: "Approaching Destination" (amber)
+  - Each step has a dot indicator: green = complete, amber = current, red = delayed, grey = pending
+- [ ] Mini Leaflet map (right side, ~300px tall):
+  - Separate `MiniMapComponent` in `shared/components/mini-map/` — keeps `DeliveryDetailComponent` clean
+  - `@Input() delivery: DeliveryModel`
+  - `@Input() locations: LocationModel[]`
+  - Pass values from resources: `[delivery]="deliveryResource.value()" [locations]="locationsResource.value() ?? []"`
+  - Draws a `L.polyline` through all `locations` in order (route trace)
+  - Places a glowing dot marker (same style as dashboard) at the current lat/lon
+  - Uses same CartoDB Positron tile layer as the main map
+  - **Must use `NgZone.runOutsideAngular` for all Leaflet init and update calls** — same pattern as `MapComponent`; Leaflet operates outside Angular's zone and won't trigger `OnPush` change detection without it
+- [ ] "Mark as Delivered" button — visible only when `status !== 'Delivered'`:
+  - Calls `deliveryService.updateStatus(id, 'Delivered')` via `subscribe()`
+  - On success: call `deliveryResource.reload()` — `httpResource` refetches automatically, no manual signal update needed
+
+**Step 5 checkpoint:** Detail page shows timeline with correct step highlighted. Mini map renders the polyline route and current dot. "Mark as Delivered" button calls the API and updates status.
+
+---
+
+### Step 6 — Final Wiring + Integration Test + Commit (~20 min)
+
+- [ ] Verify all navigation flows:
+  - Login → Dashboard (sidebar + map load) → click card → Detail page → back to Dashboard
+  - Unauthenticated `/deliveries/1` → redirects to `/login`
+  - Dashboard filter tabs cycle through All / Transit / Nearby / Delayed
+- [ ] Verify LIVE badge pulses correctly (green dot animation when `hubConnected()` is true)
+- [ ] Verify map markers update in real time on the dashboard (no page refresh needed)
+- [ ] Verify `<app-spinner>` shows briefly on both dashboard load and detail page load
+- [ ] `ng build --configuration=production` — must complete with zero errors
+- [ ] Commit and push:
+  ```bash
+  git add .
+  git commit -m "feat(frontend): delivery detail page, shared components, full dark theme"
+  git push
+  ```
+
+**Step 6 checkpoint:** Green `ng build`. All three screens navigable. Green push on GitHub.
+
+---
+
+### Phase 3 Step Summary
+
+| Step | Job | Time | Checkpoint |
+|---|---|---|---|
+| 1 | CSS variables + JetBrains Mono font | 15 min | `ng serve` identical, CSS vars applied |
+| 2 | StatusBadge component + EtaPipe | 20 min | Inline badges replaced, ETA formatted |
+| 3 | DeliveryCard + Spinner + Filter tabs | 30 min | Filter tabs work, spinner on load |
+| 4 | Detail page layout + info panels | 30 min | `/deliveries/:id` loads with stat cards |
+| 5 | Detail timeline + mini map | 30 min | Timeline + route polyline visible |
+| 6 | Final wiring + integration test + commit | 20 min | Green build + green GitHub push |
 
 ### Phase 3 Done When
 - All three screens (Login, Dashboard, Delivery Detail) look like the provided mocks

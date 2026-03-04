@@ -1,3 +1,5 @@
+<app-spinner [visible]="loading()" />
+
 <div class="dashboard-shell">
 
   <!-- ── Top bar ─────────────────────────────────────────────── -->
@@ -15,19 +17,19 @@
 
     <div class="stat-bar">
       <div class="stat">
-        <span class="stat-value" style="color:#58a6ff">{{ activeCount() }}</span>
+        <span class="stat-value" style="color: var(--accent-blue)">{{ activeCount() }}</span>
         <span class="stat-label">ACTIVE</span>
       </div>
       <div class="stat">
-        <span class="stat-value" style="color:#00ff88">{{ nearbyCount() }}</span>
+        <span class="stat-value" style="color: var(--accent-green)">{{ nearbyCount() }}</span>
         <span class="stat-label">NEARBY</span>
       </div>
       <div class="stat">
-        <span class="stat-value" style="color:#f87171">{{ delayedCount() }}</span>
+        <span class="stat-value" style="color: var(--accent-red)">{{ delayedCount() }}</span>
         <span class="stat-label">DELAYED</span>
       </div>
       <div class="stat">
-        <span class="stat-value" style="color:#64748b">{{ deliveredCount() }}</span>
+        <span class="stat-value" style="color: var(--text-muted)">{{ deliveredCount() }}</span>
         <span class="stat-label">DELIVERED</span>
       </div>
     </div>
@@ -50,59 +52,56 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <span>DELIVERIES</span>
-        <span class="count-badge">{{ deliveries().length }}</span>
+        <span class="count-badge">{{ filteredDeliveries().length }}</span>
       </div>
 
       <div class="legend">
         <div class="legend-item">
-          <span class="legend-dot" style="background:#ff8c00"></span>
+          <span class="legend-dot" style="background: var(--accent-orange)"></span>
           <span>Pickup</span>
         </div>
         <div class="legend-item">
-          <span class="legend-dot" style="background:#58a6ff"></span>
+          <span class="legend-dot" style="background: var(--accent-blue)"></span>
           <span>In Transit</span>
         </div>
         <div class="legend-item">
-          <span class="legend-dot" style="background:#00ff88"></span>
+          <span class="legend-dot" style="background: var(--accent-green)"></span>
           <span>Nearby</span>
         </div>
         <div class="legend-item">
-          <span class="legend-dot" style="background:#f87171"></span>
+          <span class="legend-dot" style="background: var(--accent-red)"></span>
           <span>Delayed</span>
         </div>
         <div class="legend-item">
-          <span class="legend-dot" style="background:#64748b"></span>
+          <span class="legend-dot" style="background: var(--text-muted)"></span>
           <span>Delivered</span>
         </div>
       </div>
 
-      @if (loading()) {
-        <div class="sidebar-loading">
-          <span class="spinner"></span> Loading...
-        </div>
-      } @else if (error()) {
+      <!-- Filter tabs -->
+      <div class="filter-tabs">
+        @for (tab of ['All', 'Transit', 'Nearby', 'Delayed']; track tab) {
+          <button
+            class="filter-tab"
+            [class.active]="activeFilter() === tab"
+            (click)="activeFilter.set(tab)"
+          >{{ tab }}</button>
+        }
+      </div>
+
+      @if (error()) {
         <div class="sidebar-error">{{ error() }}</div>
       } @else {
         <div class="delivery-list">
-          @for (d of deliveries(); track d.id) {
-            <div
-              class="delivery-card"
-              [class.selected]="selected()?.id === d.id"
-              (click)="onDeliverySelected(d)"
-            >
-              <div class="card-top">
-                <span class="delivery-number">{{ d.deliveryNumber }}</span>
-                <span class="status-badge" [style.color]="statusColor(d.status)" [style.border-color]="statusColor(d.status)">
-                  {{ d.status.toUpperCase() }}
-                </span>
-              </div>
-              <div class="card-recipient">{{ d.recipientName }}</div>
-              <div class="card-address">{{ d.destinationAddress }}</div>
-              <div class="card-meta">
-                <span>{{ d.driverName }}</span>
-                <span>{{ d.estimatedMinutes }} min &middot; {{ d.totalRouteDistanceMiles | number:'1.1-1' }} mi</span>
-              </div>
-            </div>
+          @for (d of filteredDeliveries(); track d.id) {
+            <app-delivery-card
+              [delivery]="d"
+              [selected]="selected()?.id === d.id"
+              (cardClicked)="onCardClicked($event)"
+            />
+          }
+          @if (filteredDeliveries().length === 0 && !loading()) {
+            <div class="sidebar-empty">No {{ activeFilter() === 'All' ? '' : activeFilter().toLowerCase() + ' ' }}deliveries</div>
           }
         </div>
       }

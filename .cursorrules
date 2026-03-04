@@ -6,3 +6,4 @@ Auth: JWT stored in localStorage (portfolio tradeoff, intentional)
 Naming: PascalCase for C# files, camelCase for TS files, kebab-case for Angular component folders
 Branding: Trackr only
 Password: Trackr2025!
+STATUS_COLORS lives in client/src/app/shared/constants/status-colors.ts — import from there, never redefine locally

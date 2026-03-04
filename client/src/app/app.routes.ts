@@ -19,6 +19,12 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'deliveries/:id',
+    loadComponent: () =>
+      import('./features/delivery-detail/delivery-detail.component').then(m => m.DeliveryDetailComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: '**',
     redirectTo: '/dashboard'
   }
