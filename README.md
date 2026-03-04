@@ -10,7 +10,7 @@
 
 A real-time delivery tracking dashboard built as a portfolio project to explore **Angular 21 signals**, **SignalR WebSockets**, and **Leaflet map rendering** together.
 
-Dispatchers log in and watch 12 live deliveries move across an interactive map, updating every 5 seconds via WebSocket — no page refresh required.
+Dispatchers log in and watch 5 live deliveries move across an interactive map, updating every 5 seconds via WebSocket — no page refresh required.
 
 ---
 
@@ -111,7 +111,7 @@ Tests use `WebApplicationFactory<Program>` against a temporary SQLite file. The 
 | Suite | Tests |
 |---|---|
 | `AuthControllerTests` | Valid login → 200 + token, wrong password → 401, unknown email → 401, missing fields → 400 |
-| `DeliveryControllerTests` | No token → 401, authenticated list → 12 deliveries, by-id happy path, 404, status update |
+| `DeliveryControllerTests` | No token → 401, authenticated list → 5 deliveries, by-id happy path, 404, status update |
 
 ---
 

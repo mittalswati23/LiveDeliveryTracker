@@ -55,7 +55,7 @@ public class DeliveryControllerTests : IClassFixture<CustomWebApplicationFactory
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var deliveries = await response.Content.ReadFromJsonAsync<List<JsonElement>>();
-        Assert.Equal(12, deliveries!.Count);
+        Assert.Equal(5, deliveries!.Count);
     }
 
     [Fact]
