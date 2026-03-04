@@ -14,7 +14,8 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   return next(request).pipe(
     tap({
       error: err => {
-        if (err.status === 401) {
+        // Only auto-logout if a token was present (expired session), not on a failed login attempt
+        if (err.status === 401 && auth.getToken()) {
           auth.logout();
         }
       }

@@ -67,7 +67,9 @@ export class AuthService {
   private decodeToken(token: string): UserModel | null {
     const payload = token.split('.')[1];
     if (!payload) return null;
-    const decoded = JSON.parse(atob(payload));
+    // JWT uses Base64URL — replace URL-safe chars before decoding
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(base64));
     return {
       email: decoded.email ?? decoded.sub,
       role: decoded.role,
