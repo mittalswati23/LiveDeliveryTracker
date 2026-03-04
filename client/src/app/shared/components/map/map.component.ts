@@ -59,8 +59,8 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
         zoomControl: true
       });
 
-      // CartoDB Voyager — Google Maps-like style: clean roads, labels, full colour
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // CartoDB Positron — muted greyscale, won't fight the coloured status markers
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
@@ -162,24 +162,32 @@ export class MapComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private makeIcon(color: string, label: string): L.DivIcon {
+    const num = label.replace('DLV-', '');
     return L.divIcon({
       className: '',
       html: `
-        <div style="
-          background:${color};
-          color:#0f1117;
-          border-radius:50% 50% 50% 0;
-          transform:rotate(-45deg);
-          width:30px;height:30px;
-          display:flex;align-items:center;justify-content:center;
-          font-family:monospace;font-size:7px;font-weight:bold;
-          border:2px solid #0f1117;
-          box-shadow:0 2px 6px rgba(0,0,0,0.5);
-        ">
-          <span style="transform:rotate(45deg)">${label.replace('DLV-', '')}</span>
+        <div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+          <!-- Outer glow ring -->
+          <div style="
+            position:absolute;inset:0;
+            border-radius:50%;
+            background:${color};
+            opacity:0.25;
+          "></div>
+          <!-- Solid dot -->
+          <div style="
+            width:22px;height:22px;
+            border-radius:50%;
+            background:${color};
+            border:2.5px solid white;
+            box-shadow:0 0 8px ${color}, 0 2px 4px rgba(0,0,0,0.35);
+            display:flex;align-items:center;justify-content:center;
+            font-family:monospace;font-size:7px;font-weight:700;
+            color:#0f1117;
+          ">${num}</div>
         </div>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 30]
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
     });
   }
 
