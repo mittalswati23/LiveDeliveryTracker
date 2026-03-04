@@ -152,7 +152,7 @@
       <div class="panel">
         <div class="panel-header">LIVE ROUTE MAP</div>
         <app-mini-map
-          [delivery]="deliveryResource.value()"
+          [delivery]="deliveryResource.value() ?? null"
           [locations]="locationsResource.value() ?? []"
         />
       </div>

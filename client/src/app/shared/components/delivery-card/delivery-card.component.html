@@ -1,24 +1,12 @@
-import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
-import { DeliveryModel } from '../../../core/models/delivery.model';
-import { StatusBadgeComponent } from '../status-badge/status-badge.component';
-import { EtaPipe } from '../../pipes/eta.pipe';
-
-@Component({
-  selector: 'app-delivery-card',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, StatusBadgeComponent, EtaPipe],
-  templateUrl: './delivery-card.component.html',
-  styleUrl: './delivery-card.component.scss'
-})
-export class DeliveryCardComponent {
-  delivery = input.required<DeliveryModel>();
-  selected = input(false);
-
-  cardClicked = output<DeliveryModel>();
-
-  onClick(): void {
-    this.cardClicked.emit(this.delivery());
-  }
-}
+<div class="card" [class.selected]="selected()" (click)="onClick()">
+  <div class="card-top">
+    <span class="delivery-number">{{ delivery().deliveryNumber }}</span>
+    <app-status-badge [status]="delivery().status" />
+  </div>
+  <div class="card-recipient">{{ delivery().recipientName }}</div>
+  <div class="card-address">{{ delivery().destinationAddress }}</div>
+  <div class="card-meta">
+    <span>{{ delivery().driverName }}</span>
+    <span>{{ delivery().estimatedMinutes | eta }} &middot; {{ delivery().totalRouteDistanceMiles | number:'1.1-1' }} mi</span>
+  </div>
+</div>
