@@ -51,7 +51,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer              = builder.Configuration["Jwt:Issuer"],
             ValidAudience            = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey         = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!)),
+            RoleClaimType            = "role"   // maps short "role" claim → User.IsInRole()
         };
 
         // SignalR JWT stub — reads token from query string for WebSocket connections

@@ -1,0 +1,19 @@
+:root {
+  --bg-primary:   #0f1117;
+  --bg-secondary: #1a1d27;
+  --accent:       #00ff88;
+  --text-primary: #e2e8f0;
+  --text-muted:   #64748b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+}

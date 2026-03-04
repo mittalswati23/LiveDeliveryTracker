@@ -1,7 +1,7 @@
 # Live Delivery Tracker — Phase-Wise Build Plan
 
 **Project:** Trackr Dispatch System v2.1
-**Stack:** Angular 19 · .NET Core 8 · SignalR · Leaflet · SQLite · GitHub Actions
+**Stack:** Angular 21 · .NET Core 8 · SignalR · Leaflet · SQLite · GitHub Actions
 **Author:** Swati Mittal
 
 ---
@@ -159,66 +159,231 @@ Phase 4  → Ship It              (Session 7, ~2h)   Tests, Docker, CI/CD, GitHu
 **Goal:** Angular app that calls the real Phase 1A API, logs in, and guards routes.
 **Deliverable:** Login page (matching dark mock) authenticates against the live API. Unauth visits redirect to `/login`.
 
-### Frontend Scaffold
+> Phase 1B is divided into 6 steps. Complete each step and hit its checkpoint before opening the next one in Cursor. Keep Phase 1A's backend running (`dotnet run` in a separate terminal) for end-to-end testing in Step 6.
+
+---
+
+### Step 1 — Angular Scaffold (~20 min)
 
 - [ ] `ng new client --standalone --routing --style=scss --skip-git --no-ssr`
-- [ ] Add packages: `leaflet`, `@types/leaflet`, `@microsoft/signalr`, `@angular/material`
-- [ ] Populate `src/environments/environment.ts` immediately — never leave it as the empty scaffold (gap #3):
+- [ ] Add npm packages:
+  - `npm install @angular/material leaflet @microsoft/signalr`
+  - `npm install --save-dev @types/leaflet`
+- [ ] `src/environments/environment.ts` — use `http://` not `https://` (dev cert not trusted by default):
   ```typescript
   export const environment = {
     production: false,
-    apiUrl: 'https://localhost:5001',
-    hubUrl: 'https://localhost:5001/hubs/location'
+    apiUrl: 'http://localhost:5001',
+    hubUrl: 'http://localhost:5001/hubs/location'
   };
   ```
-- [ ] Add matching `environment.production.ts` with Azure URLs as placeholders
-- [ ] Add `tsconfig.json` config required for Leaflet — set `"skipLibCheck": true` and add `"types": ["leaflet"]` under `compilerOptions` (gap #8)
+- [ ] `src/environments/environment.production.ts`:
+  ```typescript
+  export const environment = {
+    production: true,
+    apiUrl: 'https://trackr-api.azurewebsites.net',
+    hubUrl: 'https://trackr-api.azurewebsites.net/hubs/location'
+  };
+  ```
+- [ ] `tsconfig.json` — add only `"skipLibCheck": true` under `compilerOptions`. Do **NOT** add a `"types"` array — it breaks Angular's own types.
+- [ ] `angular.json` — add Leaflet CSS to the `styles` array:
+  ```json
+  "styles": ["src/styles.scss", "node_modules/leaflet/dist/leaflet.css"]
+  ```
 
-### Core Layer
+**Step 1 checkpoint:** `ng serve` compiles and the default Angular welcome page loads at `http://localhost:4200`. No errors in the terminal.
 
-- [ ] Create `core/models/` — `delivery.model.ts`, `location.model.ts`, `user.model.ts`
-  (match the DTOs from Phase 1A exactly)
-- [ ] Create `core/services/auth.service.ts`
-  - `login(email, password)` — calls `POST /api/auth/login`, stores JWT in `localStorage`
-  - `logout()` — clears `localStorage`, navigates to `/login`
-  - `currentUser` — Angular signal, derived from decoded JWT payload
-  - `isAuthenticated()` — checks token exists and is not expired
-- [ ] Create `core/guards/auth.guard.ts` — redirects to `/login` if `!isAuthenticated()`
-- [ ] Create `core/interceptors/jwt.interceptor.ts` — attaches `Authorization: Bearer <token>` to every outgoing HTTP request
+---
 
-### Login Feature
+### Step 2 — Core Models (~10 min)
 
-- [ ] Create `features/auth/login/login.component.ts` — standalone component
-- [ ] `login.component.html` — dark theme form matching the mock:
-  - TRACKR logo + "DISPATCH SYSTEM v2.1" header
-  - "Dispatcher Login" title
-  - Email field (pre-filled: `dispatcher@trackr.io`)
-  - Password field
-  - "SIGN IN" button with arrow icon
-  - "SECURED WITH JWT · SESSION EXPIRES IN 8H" footer
-- [ ] `login.component.scss` — dark theme, green accent button, monospaced labels
-- [ ] On submit: calls `AuthService.login()`, shows spinner, navigates to `/dashboard` on success, shows error on failure
+- [ ] `core/models/user.model.ts`:
+  ```typescript
+  export interface UserModel {
+    email: string;
+    role: string;
+    displayName: string;
+    exp: number;
+  }
+  export interface LoginResponse {
+    token: string;
+    email: string;
+    displayName: string;
+    role: string;
+    expiresAt: string;
+  }
+  ```
+- [ ] `core/models/delivery.model.ts` — matches `DeliveryDto` exactly:
+  ```typescript
+  export interface DeliveryModel {
+    id: number;
+    deliveryNumber: string;
+    destinationAddress: string;
+    recipientName: string;
+    packageWeight: number;
+    priority: string;
+    status: string;
+    driverId: string;
+    driverName: string;
+    estimatedMinutes: number;
+    totalRouteDistanceMiles: number;
+    currentLatitude: number;
+    currentLongitude: number;
+    currentWaypointIndex: number;
+    totalWaypoints: number;
+    dispatchedAt: string;
+  }
+  ```
+- [ ] `core/models/location.model.ts` — matches `LocationDto` exactly:
+  ```typescript
+  export interface LocationModel {
+    deliveryId: number;
+    deliveryNumber: string;
+    status: string;
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+    waypointIndex: number;
+  }
+  ```
 
-### Routing & Dashboard Placeholder
+**Step 2 checkpoint:** `ng build` passes with 0 errors. Types only — no services yet.
 
-- [ ] Create placeholder `features/dashboard/dashboard.component.ts` — minimal shell, "Phase 2 coming" message
-- [ ] Wire `app.routes.ts`:
-  - `/login` → `LoginComponent`
-  - `/dashboard` → `DashboardComponent` with `authGuard`
-  - `''` redirects to `/dashboard`
-- [ ] Apply base dark theme variables in `styles.scss`
+---
+
+### Step 3 — Auth Service, Interceptor & Guard (~25 min)
+
+- [ ] `core/services/auth.service.ts`:
+  - `login(email, password)` — `POST /api/auth/login`, stores JWT in `localStorage['trackr_token']`
+  - `logout()` — clears storage, navigates to `/login`
+  - `getToken()` — returns raw token string or null
+  - `currentUser` — Angular signal initialized from decoded token on page load
+  - `isAuthenticated()` — checks token exists and `exp * 1000 > Date.now()`, wrapped in try/catch (malformed token returns false and clears storage)
+- [ ] `core/interceptors/jwt.interceptor.ts` — functional `HttpInterceptorFn`:
+  - Reads token via `AuthService.getToken()`
+  - Clones request with `Authorization: Bearer <token>` header
+  - On 401 response: calls `auth.logout()` (auto-logout on expiry)
+- [ ] `core/guards/auth.guard.ts` — functional `CanActivateFn`:
+  - Returns `true` if `isAuthenticated()`
+  - Returns `router.createUrlTree(['/login'])` otherwise
+- [ ] `app.config.ts` — register `HttpClient` with `jwtInterceptor`:
+  ```typescript
+  provideHttpClient(withInterceptors([jwtInterceptor]))
+  ```
+
+**Step 3 checkpoint:** `ng build` passes with 0 errors.
+
+---
+
+### Step 4 — Login Component (~25 min)
+
+- [ ] `features/auth/login/login.component.ts` — standalone component:
+  - Reactive form: `email` (pre-filled `dispatcher@trackr.io`) + `password`
+  - `loading` signal — disables button and shows spinner during API call
+  - `errorMessage` signal — shows inline error on 401
+  - On success: navigate to `/dashboard`
+  - On error: set `errorMessage` to `"Invalid email or password"`
+- [ ] `login.component.html` — dark theme layout matching the mock:
+  ```
+  ┌─────────────────────────────────────┐
+  │  [📦] TRACKR  DISPATCH SYSTEM v2.1 │
+  │                                     │
+  │  Dispatcher Login                   │
+  │  Sign in to access the live         │
+  │  tracking dashboard                 │
+  │                                     │
+  │  EMAIL ADDRESS                      │
+  │  [dispatcher@trackr.io           ]  │
+  │                                     │
+  │  PASSWORD                           │
+  │  [••••••••••                     ]  │
+  │                                     │
+  │  [→  SIGN IN                     ]  │
+  │                                     │
+  │  ● SECURED WITH JWT · EXPIRES 8H   │
+  └─────────────────────────────────────┘
+  ```
+- [ ] `login.component.scss` — dark background (`#0f1117`), green accent (`#00ff88`), monospaced uppercase labels
+
+**Step 4 checkpoint:** `ng build` passes. Login page renders at `/login` with correct styling.
+
+---
+
+### Step 5 — Routing, Dashboard Placeholder & Dark Theme (~15 min)
+
+- [ ] `features/dashboard/dashboard.component.ts` — standalone, minimal placeholder:
+  - Shows dispatcher's `displayName` from `authService.currentUser()` signal
+  - "Phase 2 — Live Map Coming Soon" message
+  - Logout button wired to `authService.logout()`
+- [ ] `app.routes.ts`:
+  ```typescript
+  { path: '',          redirectTo: '/dashboard', pathMatch: 'full' },
+  { path: 'login',     loadComponent: () => import(...LoginComponent) },
+  { path: 'dashboard', loadComponent: () => import(...DashboardComponent), canActivate: [authGuard] },
+  { path: '**',        redirectTo: '/dashboard' }
+  ```
+- [ ] `styles.scss` — global dark theme CSS variables:
+  ```scss
+  :root {
+    --bg-primary:   #0f1117;
+    --bg-secondary: #1a1d27;
+    --accent:       #00ff88;
+    --text-primary: #e2e8f0;
+    --text-muted:   #64748b;
+  }
+  body { background: var(--bg-primary); color: var(--text-primary); margin: 0; }
+  ```
+
+**Step 5 checkpoint:** `ng build` passes. All routes compile. `ng serve` → visiting `/` redirects to `/dashboard` → guard redirects to `/login` (no token yet).
+
+---
+
+### Step 6 — Verify & Commit (~10 min)
+
+- [ ] Start backend: `dotnet run` in `server/DeliveryTracker.API`
+- [ ] Start frontend: `ng serve` in `client`
+- [ ] Open `http://localhost:4200` → redirects to `/login` ✓
+- [ ] Open `http://localhost:4200/dashboard` directly → redirects to `/login` ✓
+- [ ] Login with `dispatcher@trackr.io` / `Trackr2025!` → redirected to `/dashboard` ✓
+- [ ] Open DevTools → Application → Local Storage → confirm `trackr_token` key exists ✓
+- [ ] Wrong password → inline error message (no page crash) ✓
+- [ ] Click Logout → back to `/login`, token cleared from localStorage ✓
+- [ ] Commit and push:
+  ```bash
+  git add .
+  git commit -m "feat(frontend): Angular 21 scaffold, JWT auth service, login page, route guard"
+  git push
+  ```
+
+**Step 6 checkpoint:** Green push on GitHub. Phase 1B complete.
+
+---
+
+### Phase 1B Step Summary
+
+| Step | Job | Time | Checkpoint |
+|---|---|---|---|
+| 1 | Angular scaffold + packages + env + tsconfig | 20 min | `ng serve` shows default page |
+| 2 | Core models | 10 min | `ng build` green, types only |
+| 3 | AuthService + interceptor + guard + app.config | 25 min | `ng build` green |
+| 4 | Login component (HTML + SCSS + logic) | 25 min | Login page renders at `/login` |
+| 5 | Routing + dashboard placeholder + dark theme | 15 min | All routes wired, `ng build` green |
+| 6 | Verify + commit | 10 min | End-to-end login works + green push |
 
 ### Phase 1B Done When
-- `ng serve` starts on `http://localhost:4200`
+- `ng serve` starts on `http://localhost:4200` with no errors
 - Visiting `http://localhost:4200` redirects to `/login`
-- Login with `dispatcher@trackr.io` / `trackr123` → JWT stored in `localStorage` → redirected to `/dashboard`
-- Visiting `/dashboard` without a token redirects back to `/login`
-- Wrong credentials show an inline error message
+- Visiting `/dashboard` without a token redirects to `/login`
+- Login with `dispatcher@trackr.io` / `Trackr2025!` → JWT in `localStorage` → redirected to `/dashboard`
+- Wrong credentials show inline error message (no page crash)
+- Malformed / expired token in `localStorage` → redirect to `/login` without crash
+- `localStorage['trackr_token']` contains a valid JWT after login
+- Dashboard shows placeholder with dispatcher name + logout button
 
 ### End-of-Session Commit
 ```bash
 git add .
-git commit -m "feat(frontend): Angular 19 scaffold, JWT auth service, login page, route guard"
+git commit -m "feat(frontend): Angular 21 scaffold, JWT auth service, login page, route guard"
 git push
 ```
 
@@ -228,7 +393,7 @@ git push
 
 **Session:** 3–4 · Duration: ~4 hours (split across two sessions if needed) · Context: backend SignalR first, then frontend map
 **Goal:** The headline feature — live moving markers on a map driven by SignalR.
-**Deliverable:** Open the dashboard, watch 12 delivery markers move on a Leaflet map in real time.
+**Deliverable:** Open the dashboard, watch 5 delivery markers move on a Leaflet map in real time.
 
 ### End-of-Phase Commit
 ```bash
@@ -245,28 +410,19 @@ git push
 - [ ] Create `Controllers/LocationController.cs`
   - `GET /api/locations/{deliveryId}` — returns full location history from SQLite
 - [ ] Create `Services/DeliveryService.cs` + `IDeliveryService.cs`
-- [ ] Configure `JwtBearer` to also read token from SignalR query string (gap #2):
-  ```csharp
-  options.Events = new JwtBearerEvents {
-      OnMessageReceived = ctx => {
-          var token = ctx.Request.Query["access_token"];
-          if (!string.IsNullOrEmpty(token) &&
-              ctx.HttpContext.Request.Path.StartsWithSegments("/hubs"))
-              ctx.Token = token;
-          return Task.CompletedTask;
-      }
-  };
-  ```
+- [x] SignalR JWT query-string handler (`OnMessageReceived`) already wired in Phase 1A `Program.cs` — verify it works with the hub during Step 6 testing
 - [ ] Create `Hubs/LocationHub.cs`
   - `[Authorize]` attribute
   - Dashboard clients join a `"all-deliveries"` broadcast group — **not** per-delivery groups (gap #6): the simulator broadcasts to `"all-deliveries"` so every connected dispatcher sees all markers move without needing to call `JoinGroup` per delivery
   - `OnConnectedAsync` → `AddToGroupAsync(Context.ConnectionId, "all-deliveries")`
   - `OnDisconnectedAsync` → `RemoveFromGroupAsync`
 - [ ] Create `Services/LocationSimulatorService.cs` — `BackgroundService` that every 3 seconds:
-  1. Loads only `InTransit` / `Nearby` deliveries from DB
-  2. Increments each delivery's lat/lon along a pre-defined Bellevue WA route
-  3. Saves a new `Location` row to SQLite (so history endpoint has real data)
-  4. Broadcasts via `IHubContext<LocationHub>` to the delivery's SignalR group
+  1. Creates a fresh DI scope via `IServiceScopeFactory` — **required** because `DbContext` is scoped and `BackgroundService` is singleton; direct injection throws on startup
+  2. Loads only `InTransit` / `Nearby` deliveries from DB
+  3. Increments each delivery's lat/lon along its `RouteWaypoints` array
+  4. Saves a new `Location` row to SQLite (so history endpoint has real data)
+  5. Broadcasts via `IHubContext<LocationHub>` to the `"all-deliveries"` SignalR group
+  6. When `CurrentWaypointIndex` reaches the last waypoint, resets to 0 and sets `Status` back to `InTransit` — keeps all markers moving indefinitely during the demo
 - [ ] Register `LocationSimulatorService` as `AddHostedService` in `Program.cs`
 - [ ] Map SignalR hub route: `app.MapHub<LocationHub>("/hubs/location")`
 
@@ -278,13 +434,14 @@ git push
   - Appends JWT to query string: `?access_token=<token>` (gap #2)
   - `.withAutomaticReconnect()` enabled
   - Exposes `locationUpdates$` as RxJS `Subject<LocationDto>`
-  - On connect: calls `hub.invoke("JoinGroup", "all-deliveries")` — **explicitly required**, Angular does not auto-join (gap #7)
+  - No client `JoinGroup` call needed — server auto-adds every connection to `"all-deliveries"` in `OnConnectedAsync` (gap #7)
   - Starts on login, stops on logout
 - [ ] Build `shared/components/map/map.component.ts`
   - Leaflet wrapper, dark tile layer (`CartoDB.DarkMatter`)
+  - Include required tile attribution: `© OpenStreetMap contributors © CARTO` (CartoDB terms of service)
   - Accepts `[deliveries]` input, renders one marker per delivery
   - Emits `(deliverySelected)` on marker click
-  - Updates marker position when `locationUpdates$` fires
+  - Updates marker position when `locationUpdates$` fires — wrap Angular state changes in `NgZone.run(() => {...})` since Leaflet operates outside Angular's zone and won't trigger change detection on its own
 - [ ] Build dashboard layout
   - Top stat bar: Active / Nearby / Delivered / Delayed counts
   - Left sidebar: scrollable delivery list (placeholder cards for now)
@@ -292,8 +449,8 @@ git push
   - Subscribes to `SignalRService.locationUpdates$` → updates markers in real time
 
 ### Phase 2 Done When
-- Dashboard loads 12 deliveries from the real API
-- All 12 markers appear on the Leaflet map
+- Dashboard loads 5 deliveries from the real API
+- All 5 markers appear on the Leaflet map
 - Markers visibly move every 3 seconds without any page refresh
 - SignalR reconnects automatically if the backend restarts
 
@@ -440,7 +597,7 @@ git push
 ### Final Push
 
 - [ ] `git add .`
-- [ ] `git commit -m "feat: initial scaffold — Angular 19 + .NET 8 + SignalR + Leaflet"`
+- [ ] `git commit -m "feat: initial scaffold — Angular 21 + .NET 8 + SignalR + Leaflet"`
 - [ ] `git push -u origin main`
 - [ ] Verify GitHub Actions workflow runs and passes
 
@@ -462,8 +619,8 @@ git push
 | 4 | SQLite path wrong in Docker volume | Critical | 4 | `Data Source=/app/data/trackr.db` matches volume mount |
 | 5 | No PUT status update endpoint | Missing | 2 | `PUT /api/deliveries/{id}/status` added to DeliveryController |
 | 6 | SignalR group strategy wrong for dashboard | Missing | 2 | Single `"all-deliveries"` group, not per-delivery groups |
-| 7 | Angular never calls `JoinGroup` on hub | Missing | 2 | `hub.invoke("JoinGroup", "all-deliveries")` after connect |
-| 8 | Leaflet TypeScript config missing | Missing | 1B | `"skipLibCheck": true` + `"types": ["leaflet"]` in `tsconfig.json` |
+| 7 | SignalR group join strategy | Missing | 2 | Server auto-joins connection to `"all-deliveries"` in `OnConnectedAsync` — no client invocation needed |
+| 8 | Leaflet TypeScript config missing | Missing | 1B | `"skipLibCheck": true` only — no `"types"` array (adding it breaks Angular's own types) |
 | 9 | Spinner never wired to loading states | Missing | 3 | `loading` signal + `finalize()` in all async component calls |
 | 10 | Seed data has no route waypoints | Missing | 1A | `RouteWaypoints` JSON array on every seeded delivery |
 | 11 | No `.cursorrules` file | Cursor | 1A | `.cursorrules` at repo root with stack + conventions |
@@ -479,4 +636,4 @@ git push
 
 ## Resume Bullet (ready to copy once shipped)
 
-> **Live Delivery Tracker** — Full-stack real-time web app built with Angular 19, .NET Core 8, and SignalR WebSockets. Features a live dispatcher dashboard with Leaflet map, JWT auth, background GPS simulation, and EF Core + SQLite persistence. Deployed via GitHub Actions CI/CD.
+> **Live Delivery Tracker** — Full-stack real-time web app built with Angular 21, .NET Core 8, and SignalR WebSockets. Features a live dispatcher dashboard with Leaflet map, JWT auth, background GPS simulation, and EF Core + SQLite persistence. Deployed via GitHub Actions CI/CD.

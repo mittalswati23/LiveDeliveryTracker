@@ -1,0 +1,44 @@
+<div class="dashboard-shell">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">&#128230;</span>
+      <span class="brand-name">TRACKR</span>
+      <span class="brand-tag">DISPATCH SYSTEM v2.1</span>
+    </div>
+    <div class="user-info">
+      <span class="dispatcher-label">DISPATCHER</span>
+      <span class="dispatcher-name">{{ auth.currentUser()?.displayName }}</span>
+      <button class="btn-logout" (click)="auth.logout()">LOGOUT</button>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="placeholder-card">
+      <div class="phase-badge">PHASE 2</div>
+      <h2>Live Map Coming Soon</h2>
+      <p>
+        Real-time delivery tracking with SignalR and Leaflet will be wired up in Phase 2.
+        The backend, authentication, and route guard are all working.
+      </p>
+      <div class="status-grid">
+        <div class="status-item ok">
+          <span class="dot"></span> Backend API
+        </div>
+        <div class="status-item ok">
+          <span class="dot"></span> JWT Auth
+        </div>
+        <div class="status-item ok">
+          <span class="dot"></span> Route Guard
+        </div>
+        <div class="status-item pending">
+          <span class="dot"></span> Live Map
+        </div>
+        <div class="status-item pending">
+          <span class="dot"></span> SignalR Hub
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
