@@ -114,3 +114,6 @@ app.MapControllers();
 app.MapHub<LocationHub>("/hubs/location");
 
 app.Run();
+
+// Required for WebApplicationFactory in integration tests
+public partial class Program { }

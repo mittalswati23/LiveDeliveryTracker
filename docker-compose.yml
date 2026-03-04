@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+
+  api:
+    build:
+      context: ./server/DeliveryTracker.API
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/trackr.db
+      - Cors__AllowedOrigins__0=http://localhost
+      # Provide your JWT secret via a .env file or shell export — never commit it
+      # - Jwt__Secret=your-secret-here
+    env_file:
+      - .env.docker          # create this file locally; it is gitignored
+    volumes:
+      - sqlite-data:/app/data
+    networks:
+      - trackr-network
+
+  client:
+    build:
+      context: ./client
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - trackr-network
+
+volumes:
+  sqlite-data:
+
+networks:
+  trackr-network:
+    driver: bridge
