@@ -1,6 +1,6 @@
 # Trackr — Live Delivery Tracker
 
-[![CI](https://github.com/mittalswati/LiveDeliveryTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mittalswati/LiveDeliveryTracker/actions/workflows/ci.yml)
+[![CI](https://github.com/mittalswati23/LiveDeliveryTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mittalswati23/LiveDeliveryTracker/actions/workflows/ci.yml)
 ![Angular](https://img.shields.io/badge/Angular-21-red?logo=angular)
 ![.NET](https://img.shields.io/badge/.NET-8-purple?logo=dotnet)
 ![SignalR](https://img.shields.io/badge/SignalR-WebSocket-blue)
