@@ -1,6 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -11,35 +12,34 @@ import { AuthService } from '../../../core/services/auth.service';
   styleUrl: './login.component.scss'
 })
 export class LoginComponent {
-  form: FormGroup;
-  loading = signal(false);
+  private fb   = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+
+  form: FormGroup = this.fb.group({
+    email:    ['dispatcher@trackr.io', [Validators.required, Validators.email]],
+    password: ['', Validators.required]
+  });
+
+  loading      = signal(false);
   errorMessage = signal('');
 
-  constructor(
-    private fb: FormBuilder,
-    private auth: AuthService,
-    private router: Router
-  ) {
-    this.form = this.fb.group({
-      email:    ['dispatcher@trackr.io', [Validators.required, Validators.email]],
-      password: ['', Validators.required]
-    });
-  }
-
   submit(): void {
-    if (this.form.invalid || this.loading()) return;
+    if (this.form.invalid || this.loading()) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
     this.loading.set(true);
     this.errorMessage.set('');
 
     const { email, password } = this.form.value;
 
-    this.auth.login(email, password).subscribe({
+    this.auth.login(email, password).pipe(
+      finalize(() => this.loading.set(false))
+    ).subscribe({
       next: () => this.router.navigate(['/dashboard']),
-      error: () => {
-        this.errorMessage.set('Invalid email or password');
-        this.loading.set(false);
-      }
+      error: () => this.errorMessage.set('Invalid email or password')
     });
   }
 }

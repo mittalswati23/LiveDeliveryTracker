@@ -23,6 +23,13 @@
           autocomplete="username"
           [class.invalid]="form.get('email')?.invalid && form.get('email')?.touched"
         />
+        @if (form.get('email')?.touched) {
+          @if (form.get('email')?.hasError('required')) {
+            <span class="field-error">Email is required</span>
+          } @else if (form.get('email')?.hasError('email')) {
+            <span class="field-error">Enter a valid email address</span>
+          }
+        }
       </div>
 
       <div class="field">
@@ -35,6 +42,9 @@
           placeholder="••••••••••"
           [class.invalid]="form.get('password')?.invalid && form.get('password')?.touched"
         />
+        @if (form.get('password')?.touched && form.get('password')?.hasError('required')) {
+          <span class="field-error">Password is required</span>
+        }
       </div>
 
       @if (errorMessage()) {

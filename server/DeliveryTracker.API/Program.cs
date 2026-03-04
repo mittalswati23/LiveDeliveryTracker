@@ -1,5 +1,6 @@
 using System.Text;
 using DeliveryTracker.API.Data;
+using DeliveryTracker.API.Hubs;
 using DeliveryTracker.API.Middleware;
 using DeliveryTracker.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -83,7 +84,10 @@ builder.Services.AddCors(options =>
               .AllowCredentials())); // required for SignalR in Phase 2
 
 // ── 5. Application Services ───────────────────────────────────────────────────
+builder.Services.AddSignalR();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IDeliveryService, DeliveryService>();
+builder.Services.AddHostedService<LocationSimulatorService>();
 
 var app = builder.Build();
 
@@ -104,5 +108,6 @@ app.UseCors("trackr");       // BEFORE UseAuthentication
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<LocationHub>("/hubs/location");
 
 app.Run();
