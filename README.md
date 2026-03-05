@@ -12,6 +12,8 @@ A real-time delivery tracking dashboard built as a portfolio project to explore 
 
 Dispatchers log in and watch 5 live deliveries move across an interactive map, updating every 5 seconds via WebSocket — no page refresh required.
 
+Want to run it locally or contribute? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
 ---
 
 ## Demo
