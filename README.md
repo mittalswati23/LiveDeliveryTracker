@@ -155,12 +155,24 @@ LiveDeliveryTracker/
 
 ---
 
+## Azure deployment (optional)
+
+To host the app on Azure (Static Web Apps + App Service):
+
+1. **Critical:** Ensure **`staticwebapp.config.json`** is present so client-side routes work (no 404 on refresh). It lives in [`client/public/staticwebapp.config.json`](client/public/staticwebapp.config.json) and is copied into the build output; it configures `navigationFallback` to `/index.html` for the SPA.
+2. Create an **Azure App Service** for the API (.NET 8). **Free F1** is fine for a demo; the app may sleep when idle and SignalR will drop until the next request wakes it. Use **Basic B1 or higher** for always-on and reliable real-time updates. Create a **Static Web App** for the client.
+3. Set App Service app settings: `Jwt__Secret`, `Cors__AllowedOrigins__0` = your Static Web App URL.
+4. Add GitHub secrets: `AZURE_API_PUBLISH_PROFILE`, `AZURE_STATIC_WEB_APPS_API_TOKEN`.
+5. Uncomment the `deploy-api` and `deploy-client` jobs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml); add a `dotnet publish` step before the API deploy. Use `output_location: dist/client/browser` for the client deploy.
+
+---
+
 ## What I'd Add Next
 
 - **Role-based views** — driver mobile view vs. dispatcher dashboard
 - **Delivery history** — chart of daily completed deliveries
 - **Push notifications** — browser `Notification API` when a delivery goes `Nearby`
-- **Azure deployment** — uncomment the deploy jobs in `ci.yml` and add publish profile secrets
+- **Azure deployment** — follow the steps in the section above
 - **Postgres + migrations** — production-ready persistence
 
 ---
